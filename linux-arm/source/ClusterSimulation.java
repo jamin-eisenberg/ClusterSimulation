@@ -19,8 +19,8 @@ public class ClusterSimulation extends PApplet {
 
 
 
-final int TRIG_PIN = 23;
-final int ECHO_PIN = 24;
+final int TRIG_PIN = 16;
+final int ECHO_PIN = 18;
 
 public void setup() {
   /* size commented out by preprocessor */;

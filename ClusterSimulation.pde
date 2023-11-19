@@ -1,7 +1,7 @@
 import processing.io.GPIO;
 
-final int TRIG_PIN = 23;
-final int ECHO_PIN = 24;
+final int TRIG_PIN = 16;
+final int ECHO_PIN = 18;
 
 void setup() {
   fullScreen();
