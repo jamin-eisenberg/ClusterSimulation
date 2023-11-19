@@ -4,7 +4,7 @@ import processing.data.*;
 import processing.event.*;
 import processing.opengl.*;
 
-import processing.io.*;
+import processing.io.GPIO;
 
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -25,8 +25,8 @@ final int ECHO_PIN = 24;
 public void setup() {
   /* size commented out by preprocessor */;
 
-  //GPIO.pinMode(TRIG_PIN, GPIO.OUTPUT);
-  //GPIO.pinMode(ECHO_PIN, GPIO.INPUT);
+  GPIO.pinMode(TRIG_PIN, GPIO.OUTPUT);
+  GPIO.pinMode(ECHO_PIN, GPIO.INPUT);
 }
 
 public void draw() {

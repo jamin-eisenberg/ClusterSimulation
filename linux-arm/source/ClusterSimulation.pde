@@ -1,4 +1,4 @@
-import processing.io.*;
+import processing.io.GPIO;
 
 final int TRIG_PIN = 23;
 final int ECHO_PIN = 24;
@@ -6,8 +6,8 @@ final int ECHO_PIN = 24;
 void setup() {
   fullScreen();
 
-  //GPIO.pinMode(TRIG_PIN, GPIO.OUTPUT);
-  //GPIO.pinMode(ECHO_PIN, GPIO.INPUT);
+  GPIO.pinMode(TRIG_PIN, GPIO.OUTPUT);
+  GPIO.pinMode(ECHO_PIN, GPIO.INPUT);
 }
 
 void draw() {
