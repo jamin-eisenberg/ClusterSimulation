@@ -29,7 +29,7 @@ def read_distance():
             pulse_end_time = time.time()
 
       pulse_duration = pulse_end_time - pulse_start_time
-      distance = round(pulse_duration * 17150, 2)
+      return round(pulse_duration * 17150, 2)
 
     finally:
       GPIO.cleanup()
