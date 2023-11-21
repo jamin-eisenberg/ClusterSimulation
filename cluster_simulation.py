@@ -45,6 +45,7 @@ width, height = screen.get_size()
 pygame.display.set_caption("Hello World")
 while True:
     screen.fill((255, 0, 0))
+    dist = read_distance()
     text_surface = my_font.render(f'Distance: {dist}', False, (0, 0, 0))
     screen.blit(text_surface, (width / 2, height / 2))
 
