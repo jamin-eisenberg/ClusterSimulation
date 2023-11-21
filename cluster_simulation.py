@@ -5,7 +5,13 @@ import time
 
 from flask import Flask
 
+# TODO serve with gunicorn
+# TODO ensure server works with sim
+# TODO update script to run server
+
 app = Flask(__name__)
+
+label = "label"
 
 @app.route("/")
 def hello_world():
