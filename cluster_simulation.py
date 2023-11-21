@@ -3,6 +3,21 @@ import sys
 import RPi.GPIO as GPIO
 import time
 
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    return "<p>Hello, World!</p>"
+
+@app.route("/<name>")
+def hello(name):
+    global label
+    label = name
+    return f"Hello, {escape(name)}!"
+
+
 def read_distance():
     try:
       GPIO.setmode(GPIO.BOARD)
@@ -49,7 +64,7 @@ pygame.display.set_caption("Hello World")
 while True:
     screen.fill((255, 0, 0))
     dist = read_distance()
-    text_surface = my_font.render(f'Distance: {dist}', False, (0, 0, 0))
+    text_surface = my_font.render(f'Distance {label}: {dist}', False, (0, 0, 0))
     screen.blit(text_surface, (width / 2, height / 2))
 
     for event in pygame.event.get():
