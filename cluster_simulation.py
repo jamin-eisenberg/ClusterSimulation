@@ -3,7 +3,7 @@ import sys
 import RPi.GPIO as GPIO
 import time
 
-from flask import Flask
+from flask import Flask, escape
 
 # TODO serve with gunicorn
 # TODO ensure server works with sim
@@ -13,9 +13,11 @@ app = Flask(__name__)
 
 label = "label"
 
+
 @app.route("/")
 def hello_world():
     return "<p>Hello, World!</p>"
+
 
 @app.route("/<name>")
 def hello(name):
@@ -26,37 +28,38 @@ def hello(name):
 
 def read_distance():
     try:
-      GPIO.setmode(GPIO.BOARD)
+        GPIO.setmode(GPIO.BOARD)
 
-      PIN_TRIGGER = 16
-      PIN_ECHO = 18
+        PIN_TRIGGER = 16
+        PIN_ECHO = 18
 
-      GPIO.setup(PIN_TRIGGER, GPIO.OUT)
-      GPIO.setup(PIN_ECHO, GPIO.IN)
+        GPIO.setup(PIN_TRIGGER, GPIO.OUT)
+        GPIO.setup(PIN_ECHO, GPIO.IN)
 
-      GPIO.output(PIN_TRIGGER, GPIO.LOW)
+        GPIO.output(PIN_TRIGGER, GPIO.LOW)
 
-      time.sleep(0.2)
+        time.sleep(0.2)
 
-      GPIO.output(PIN_TRIGGER, GPIO.HIGH)
+        GPIO.output(PIN_TRIGGER, GPIO.HIGH)
 
-      time.sleep(0.00001)
+        time.sleep(0.00001)
 
-      GPIO.output(PIN_TRIGGER, GPIO.LOW)
+        GPIO.output(PIN_TRIGGER, GPIO.LOW)
 
-      pulse_start_time = time.time()
-      while GPIO.input(PIN_ECHO)==0:
+        pulse_start_time = time.time()
+        while GPIO.input(PIN_ECHO) == 0:
             pulse_start_time = time.time()
 
-      pulse_end_time = time.time()
-      while GPIO.input(PIN_ECHO)==1:
+        pulse_end_time = time.time()
+        while GPIO.input(PIN_ECHO) == 1:
             pulse_end_time = time.time()
 
-      pulse_duration = pulse_end_time - pulse_start_time
-      return round(pulse_duration * 17150, 2)
+        pulse_duration = pulse_end_time - pulse_start_time
+        return round(pulse_duration * 17150, 2)
 
     finally:
-      GPIO.cleanup()
+        GPIO.cleanup()
+
 
 pygame.init()
 pygame.font.init()
@@ -74,8 +77,7 @@ while True:
     screen.blit(text_surface, (width / 2, height / 2))
 
     for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 pygame.quit()
                 sys.exit()
 
