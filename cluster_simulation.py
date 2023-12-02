@@ -1,14 +1,16 @@
 import random
-from html import escape
-
-import pygame
 import sys
+import multiprocessing
 # import RPi.GPIO as GPIO TODO gpio
 import time
+import threading
 
-from flask import Flask
+import pygame
+from flask import Flask, request
 
 from Particle import Particle
+from SpatialHash import SpatialHash
+from State import SharedState
 
 # TODO serve with gunicorn
 # TODO ensure server works with sim
@@ -18,17 +20,20 @@ app = Flask(__name__)
 
 label = "label"
 
-
-@app.route("/")
-def hello_world():
-    return "<p>Hello, World!</p>"
+state = SharedState()
 
 
-@app.route("/<name>")
-def hello(name):
-    global label
-    label = name
-    return f"Hello, {escape(name)}!"
+@app.route("/<color1>/to/<color2>", methods=["PATCH"])
+def change_color_relationship(color1, color2):
+    state = app.config['STATE']
+    new_attraction = request.args.get("attraction")
+
+    curr_interactions = state.get("color_interactions")
+    curr_interactions[int(color1)][int(color2)] = float(new_attraction)
+    state.set("color_interactions", curr_interactions)
+
+    return ""
+
 
 # TODO concurrent
 def read_distance():
@@ -70,38 +75,67 @@ def read_distance():
 #     finally:
 #         GPIO.cleanup()
 
+def webserver(state):
+    app.config['STATE'] = state
+    app.run(host='0.0.0.0', use_reloader=False, debug=True)
 
-pygame.init()
-pygame.font.init()
 
-my_font = pygame.font.SysFont('Comic Sans MS', 30)
+def run_sim():
+    global state
+    pygame.init()
+    pygame.font.init()
 
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-width, height = screen.get_size()
+    my_font = pygame.font.SysFont('Comic Sans MS', 30)
 
-particles = [Particle((random.randint(0, width), random.randint(0, height)), i % 2) for i in range(100)]
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.DOUBLEBUF, 8)  # TODO revert  pygame.FULLSCREEN)
+    pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN])
 
-pygame.display.set_caption("Hello World")
-while True:
-    screen.fill((0, 0, 0))
-    # dist = read_distance()
-    # text_surface = my_font.render(f'Distance {label}: {dist}', False, (0, 0, 0))
-    # screen.blit(text_surface, (width / 2, height / 2))
+    width, height = screen.get_size()
 
-    for particle in particles:
-        for other in particles:
-            if particle != other:
-                particle.interact(other)
-        particle.update(width, height)
-        particle.draw(screen)
+    particles = [Particle((random.randint(0, width), random.randint(0, height)), i % 4, state) for i in range(300)]
 
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+    clock = pygame.time.Clock()
+
+
+    pygame.display.set_caption("Cluster Simulation")
+    while True:
+        spatial_hash = SpatialHash(state.get("interaction_radius"), width, height)
+        dt = clock.tick(30)
+        for particle in particles:
+            spatial_hash.insert_particle(particle)
+
+        clock.tick()
+        print(clock.get_fps())
+        screen.fill((0, 0, 0))
+        # dist = read_distance()
+        # text_surface = my_font.render(f'Distance {label}: {dist}', False, (0, 0, 0))
+        # screen.blit(text_surface, (width / 2, height / 2))
+
+        # with state_lock:
+        for particle in particles:
+            for other in spatial_hash.neighbor_particles(particle):
+                if particle != other:
+                    particle.interact(other)
+            particle.update(width, height)
+            particle.draw(screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or event.type == pygame.QUIT:
                 pygame.quit()
-                sys.exit()
+                return
 
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+        pygame.display.update()
 
-    pygame.display.update()
+
+def main():
+    web_thread = multiprocessing.Process(target=webserver, args=(state,))
+    web_thread.start()
+    sim_thread = multiprocessing.Process(target=run_sim)
+    sim_thread.start()
+    sim_thread.join()
+    web_thread.terminate()
+    web_thread.join()
+
+
+if __name__ == '__main__':
+    main()
