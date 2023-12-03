@@ -10,25 +10,18 @@ from flask import Flask, request
 
 from Particle import Particle
 from SpatialHash import SpatialHash
-from State import (
+from constants import (
     COLOR_INTERACTIONS_START_INDEX,
     COLOR_INTERACTIONS_ROW_LENGTH,
     DISTANCE_INDEX,
     INTERACTION_RADIUS_INDEX,
-    slice_sl,
     FRICTION_COEFFICIENT_INDEX,
     COLOR_NUMBER_LOOKUP_START_INDEX,
     COLOR_NUMBER_LOOKUP_ROW_LENGTH,
     PARTICLE_RADIUS_INDEX,
-    slice_real_sl,
 )
 
-# TODO serve with gunicorn
-# TODO ensure server works with sim
-# TODO update script to run server
-
 app = Flask(__name__)
-
 
 INITIAL_STATE = [
     5,  # particle radius
@@ -83,7 +76,6 @@ def change_color_relationship(color1, color2):
     return ""
 
 
-# TODO concurrent
 def read_distance(sl):
     while True:
         time.sleep(1)
@@ -131,10 +123,6 @@ def webserver(sl):
     app.run(host="0.0.0.0", use_reloader=False, debug=True)
 
 
-# TODO need to be in the same module to share state?
-# TODO shared memory? https://stackoverflow.com/questions/14124588/shared-memory-in-multiprocessing
-
-
 def run_sim(sl):
     pygame.init()
 
@@ -170,18 +158,14 @@ def run_sim(sl):
         # print(dist)
 
         interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
-        # TODO redo slice_sl
-        color_interactions = slice_sl(
-            shared_list_copy,
-            COLOR_INTERACTIONS_START_INDEX,
-            COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4,
-        )
-        print(color_interactions)
-        color_number_lookup = slice_sl(
-            shared_list_copy,
-            COLOR_NUMBER_LOOKUP_START_INDEX,
-            COLOR_NUMBER_LOOKUP_START_INDEX + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4,
-        )
+        color_interactions =shared_list_copy[
+            COLOR_INTERACTIONS_START_INDEX:
+            COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4
+        ]
+        color_number_lookup = shared_list_copy[
+            COLOR_NUMBER_LOOKUP_START_INDEX:
+            COLOR_NUMBER_LOOKUP_START_INDEX + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4
+        ]
         particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
 
         for particle in particles:

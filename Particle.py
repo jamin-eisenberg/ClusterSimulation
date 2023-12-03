@@ -1,15 +1,9 @@
 import pygame.draw
 from pygame import gfxdraw
 
-from State import (
-    FRICTION_COEFFICIENT_INDEX,
-    INTERACTION_RADIUS_INDEX,
-    PARTICLE_RADIUS_INDEX,
-    COLOR_NUMBER_LOOKUP_START_INDEX,
+from constants import (
     COLOR_NUMBER_LOOKUP_ROW_LENGTH,
-    COLOR_INTERACTIONS_START_INDEX,
     COLOR_INTERACTIONS_ROW_LENGTH,
-    slice_sl,
 )
 
 
