@@ -1,16 +1,27 @@
 import random
-import sys
 import multiprocessing
+
 # import RPi.GPIO as GPIO TODO gpio
 import time
-import threading
+from multiprocessing.managers import SharedMemoryManager
 
 import pygame
 from flask import Flask, request
 
 from Particle import Particle
 from SpatialHash import SpatialHash
-from State import SharedState
+from State import (
+    COLOR_INTERACTIONS_START_INDEX,
+    COLOR_INTERACTIONS_ROW_LENGTH,
+    DISTANCE_INDEX,
+    INTERACTION_RADIUS_INDEX,
+    slice_sl,
+    FRICTION_COEFFICIENT_INDEX,
+    COLOR_NUMBER_LOOKUP_START_INDEX,
+    COLOR_NUMBER_LOOKUP_ROW_LENGTH,
+    PARTICLE_RADIUS_INDEX,
+    slice_real_sl,
+)
 
 # TODO serve with gunicorn
 # TODO ensure server works with sim
@@ -18,27 +29,66 @@ from State import SharedState
 
 app = Flask(__name__)
 
-label = "label"
 
-state = SharedState()
+INITIAL_STATE = [
+    5,  # particle radius
+    70,  # interaction radius
+    0.97,  # friction
+    0,  # distance
+    255,  # colors
+    0,
+    0,
+    0,
+    255,
+    0,
+    0,
+    0,
+    255,
+    255,
+    255,
+    0,
+    -0.01,  # interactions
+    0.01,
+    0,
+    0,
+    0.01,
+    -0.01,
+    0,
+    0,
+    -0.01,
+    -0.01,
+    -0.01,
+    -0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+]
 
-
+# TODO save sim params to file
 @app.route("/<color1>/to/<color2>", methods=["PATCH"])
 def change_color_relationship(color1, color2):
-    state = app.config['STATE']
+    sl = app.config["STATE"]
     new_attraction = request.args.get("attraction")
-
-    curr_interactions = state.get("color_interactions")
-    curr_interactions[int(color1)][int(color2)] = float(new_attraction)
-    state.set("color_interactions", curr_interactions)
+    print(2)
+    # curr_interactions = slice_real_sl(
+    #     sl,
+    #     COLOR_INTERACTIONS_START_INDEX,
+    #     COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4,
+    # )
+    sl[
+        COLOR_INTERACTIONS_START_INDEX + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH + int(color2)
+    ] = float(new_attraction)
 
     return ""
 
 
 # TODO concurrent
-def read_distance():
-    time.sleep(1)
-    return random.randint(0, 100)
+def read_distance(sl):
+    while True:
+        time.sleep(1)
+        sl[DISTANCE_INDEX] = pygame.key.get_pressed()[pygame.K_SPACE] * 50
+        print(pygame.key.get_pressed()[pygame.K_SPACE])
 
 
 # def read_distance():  TODO gpio
@@ -75,52 +125,79 @@ def read_distance():
 #     finally:
 #         GPIO.cleanup()
 
-def webserver(state):
-    app.config['STATE'] = state
-    app.run(host='0.0.0.0', use_reloader=False, debug=True)
+
+def webserver(sl):
+    app.config["STATE"] = sl
+    app.run(host="0.0.0.0", use_reloader=False, debug=True)
 
 
-def run_sim():
-    global state
+# TODO need to be in the same module to share state?
+# TODO shared memory? https://stackoverflow.com/questions/14124588/shared-memory-in-multiprocessing
+
+
+def run_sim(sl):
     pygame.init()
-    pygame.font.init()
 
-    my_font = pygame.font.SysFont('Comic Sans MS', 30)
-
-    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.DOUBLEBUF, 8)  # TODO revert  pygame.FULLSCREEN)
+    screen = pygame.display.set_mode(
+        (640, 480), pygame.DOUBLEBUF, 8
+    )  # TODO revert  pygame.FULLSCREEN)
     pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN])
 
     width, height = screen.get_size()
 
-    particles = [Particle((random.randint(0, width), random.randint(0, height)), i % 4, state) for i in range(300)]
+    # TODO parametrize num particles
+    particles = [
+        Particle((random.randint(0, width), random.randint(0, height)), i % 4)
+        for i in range(50)
+    ]
 
     clock = pygame.time.Clock()
 
-
     pygame.display.set_caption("Cluster Simulation")
     while True:
-        spatial_hash = SpatialHash(state.get("interaction_radius"), width, height)
-        dt = clock.tick(30)
+        shared_list_copy = [e for e in sl]
+        spatial_hash = SpatialHash(
+            shared_list_copy[INTERACTION_RADIUS_INDEX], width, height
+        )
+        clock.tick(30)
         for particle in particles:
             spatial_hash.insert_particle(particle)
 
-        clock.tick()
-        print(clock.get_fps())
         screen.fill((0, 0, 0))
-        # dist = read_distance()
-        # text_surface = my_font.render(f'Distance {label}: {dist}', False, (0, 0, 0))
-        # screen.blit(text_surface, (width / 2, height / 2))
+        # print(clock.get_fps())
 
-        # with state_lock:
+        dist = shared_list_copy[DISTANCE_INDEX]
+        # print(dist)
+
+        interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
+        # TODO redo slice_sl
+        color_interactions = slice_sl(
+            shared_list_copy,
+            COLOR_INTERACTIONS_START_INDEX,
+            COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4,
+        )
+        print(color_interactions)
+        color_number_lookup = slice_sl(
+            shared_list_copy,
+            COLOR_NUMBER_LOOKUP_START_INDEX,
+            COLOR_NUMBER_LOOKUP_START_INDEX + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4,
+        )
+        particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
+
         for particle in particles:
             for other in spatial_hash.neighbor_particles(particle):
                 if particle != other:
-                    particle.interact(other)
-            particle.update(width, height)
-            particle.draw(screen)
+                    particle.interact(other, interaction_radius, color_interactions)
+            particle.update(width, height, shared_list_copy[FRICTION_COEFFICIENT_INDEX])
+            particle.draw(screen, color_number_lookup, particle_radius)
+            # quit()
 
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or event.type == pygame.QUIT:
+            if (
+                event.type == pygame.KEYDOWN
+                and event.key == pygame.K_ESCAPE
+                or event.type == pygame.QUIT
+            ):
                 pygame.quit()
                 return
 
@@ -128,14 +205,22 @@ def run_sim():
 
 
 def main():
-    web_thread = multiprocessing.Process(target=webserver, args=(state,))
-    web_thread.start()
-    sim_thread = multiprocessing.Process(target=run_sim)
-    sim_thread.start()
-    sim_thread.join()
-    web_thread.terminate()
-    web_thread.join()
+    with SharedMemoryManager() as smm:
+        sl = smm.ShareableList(INITIAL_STATE)
+
+        web_thread = multiprocessing.Process(target=webserver, args=(sl,))
+        web_thread.start()
+
+        sim_thread = multiprocessing.Process(target=run_sim, args=(sl,))
+        sim_thread.start()
+
+        # dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
+        # dist_thread.start()
+
+        sim_thread.join()
+        web_thread.terminate()
+        web_thread.join()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

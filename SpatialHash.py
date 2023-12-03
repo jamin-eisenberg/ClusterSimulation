@@ -4,7 +4,10 @@ import itertools
 class SpatialHash:
     # we shouldn't make the buckets narrower than the interaction radius
     def __init__(self, cell_size, width, height):
-        self.buckets = [[set() for _ in range(width // cell_size + 1)] for _ in range(height // cell_size + 1)]
+        self.buckets = [
+            [set() for _ in range(width // cell_size + 1)]
+            for _ in range(height // cell_size + 1)
+        ]
         self.cell_size = cell_size
 
     def _hash(self, point):
@@ -23,8 +26,15 @@ class SpatialHash:
         num_cells_y = len(self.buckets)
         particle_bucket_x, particle_bucket_y = self._hash(particle)
 
-        surrounding_indices = [(j, i) for j in self._run(particle_bucket_x - 1, particle_bucket_x + 2, num_cells_x) for i in
-                               self._run(particle_bucket_y - 1, particle_bucket_y + 2, num_cells_y)]
+        surrounding_indices = [
+            (j, i)
+            for j in self._run(
+                particle_bucket_x - 1, particle_bucket_x + 2, num_cells_x
+            )
+            for i in self._run(
+                particle_bucket_y - 1, particle_bucket_y + 2, num_cells_y
+            )
+        ]
 
         surrounding_buckets = [self.buckets[i][j] for j, i in surrounding_indices]
         neighbors = set()
