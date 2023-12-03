@@ -58,6 +58,7 @@ INITIAL_STATE = [
     0.01,
 ]
 
+
 # TODO save sim params to file
 @app.route("/<color1>/to/<color2>", methods=["PATCH"])
 def change_color_relationship(color1, color2):
@@ -70,7 +71,9 @@ def change_color_relationship(color1, color2):
     #     COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4,
     # )
     sl[
-        COLOR_INTERACTIONS_START_INDEX + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH + int(color2)
+        COLOR_INTERACTIONS_START_INDEX
+        + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
+        + int(color2)
     ] = float(new_attraction)
 
     return ""
@@ -158,13 +161,13 @@ def run_sim(sl):
         # print(dist)
 
         interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
-        color_interactions =shared_list_copy[
-            COLOR_INTERACTIONS_START_INDEX:
-            COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4
+        color_interactions = shared_list_copy[
+            COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
+            + COLOR_INTERACTIONS_ROW_LENGTH * 4
         ]
         color_number_lookup = shared_list_copy[
-            COLOR_NUMBER_LOOKUP_START_INDEX:
-            COLOR_NUMBER_LOOKUP_START_INDEX + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4
+            COLOR_NUMBER_LOOKUP_START_INDEX : COLOR_NUMBER_LOOKUP_START_INDEX
+            + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4
         ]
         particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
 
