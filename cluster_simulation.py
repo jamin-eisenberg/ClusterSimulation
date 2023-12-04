@@ -1,3 +1,4 @@
+import json
 import random
 import multiprocessing
 
@@ -7,6 +8,7 @@ from multiprocessing.managers import SharedMemoryManager
 
 import pygame
 from flask import Flask, request
+from pynput.mouse import Controller
 
 from Particle import Particle
 from SpatialHash import SpatialHash
@@ -19,6 +21,11 @@ from constants import (
     COLOR_NUMBER_LOOKUP_START_INDEX,
     COLOR_NUMBER_LOOKUP_ROW_LENGTH,
     PARTICLE_RADIUS_INDEX,
+    PREVIOUS_DISTANCE_INDEX,
+    DISTURBANCE_AMOUNT_INDEX,
+    DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX,
+    DISTANCE_READ_PERIOD_INDEX,
+    DESIRED_PARTICLE_COUNT_INDEX,
 )
 
 app = Flask(__name__)
@@ -28,6 +35,11 @@ INITIAL_STATE = [
     70,  # interaction radius
     0.97,  # friction
     0,  # distance
+    0,  # previous distance
+    -0.1,  # disturbance amount
+    10,  # disturbance derivative threshold
+    0.1,  # distance read period
+    50,  # desired number of particles
     255,  # colors
     0,
     0,
@@ -64,12 +76,6 @@ INITIAL_STATE = [
 def change_color_relationship(color1, color2):
     sl = app.config["STATE"]
     new_attraction = request.args.get("attraction")
-    print(2)
-    # curr_interactions = slice_real_sl(
-    #     sl,
-    #     COLOR_INTERACTIONS_START_INDEX,
-    #     COLOR_INTERACTIONS_START_INDEX + COLOR_INTERACTIONS_ROW_LENGTH * 4,
-    # )
     sl[
         COLOR_INTERACTIONS_START_INDEX
         + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
@@ -79,11 +85,21 @@ def change_color_relationship(color1, color2):
     return ""
 
 
+@app.route("/particle-count/<new_count>", methods=["PATCH"])
+def change_particle_count(new_count):
+    sl = app.config["STATE"]
+    sl[DESIRED_PARTICLE_COUNT_INDEX] = int(new_count)
+
+    return ""
+
+
 def read_distance(sl):
     while True:
-        time.sleep(1)
-        sl[DISTANCE_INDEX] = pygame.key.get_pressed()[pygame.K_SPACE] * 50
-        print(pygame.key.get_pressed()[pygame.K_SPACE])
+        time.sleep(sl[DISTANCE_READ_PERIOD_INDEX])
+        mouse = Controller()
+        sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
+        sl[DISTANCE_INDEX] = mouse.position[0]
+        # print(pygame.key.get_pressed()[pygame.K_SPACE])
 
 
 # def read_distance():  TODO gpio
@@ -136,11 +152,8 @@ def run_sim(sl):
 
     width, height = screen.get_size()
 
-    # TODO parametrize num particles
-    particles = [
-        Particle((random.randint(0, width), random.randint(0, height)), i % 4)
-        for i in range(50)
-    ]
+    next_color_to_generate = 0
+    particles = []
 
     clock = pygame.time.Clock()
 
@@ -157,8 +170,30 @@ def run_sim(sl):
         screen.fill((0, 0, 0))
         # print(clock.get_fps())
 
+        previous_dist = shared_list_copy[PREVIOUS_DISTANCE_INDEX]
         dist = shared_list_copy[DISTANCE_INDEX]
-        # print(dist)
+        if (
+            dist - previous_dist
+            > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
+        ):
+            shared_list_copy[
+                COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
+                + COLOR_INTERACTIONS_ROW_LENGTH * 4
+            ] = [
+                shared_list_copy[DISTURBANCE_AMOUNT_INDEX]
+                for _ in range(COLOR_INTERACTIONS_ROW_LENGTH * 4)
+            ]
+
+        if len(particles) > shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
+            particles.pop(0)
+        elif len(particles) < shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
+            particles.append(
+                Particle(
+                    (random.randint(0, width), random.randint(0, height)),
+                    next_color_to_generate,
+                )
+            )
+            next_color_to_generate = (next_color_to_generate + 1) % 4
 
         interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
         color_interactions = shared_list_copy[
@@ -193,7 +228,8 @@ def run_sim(sl):
 
 def main():
     with SharedMemoryManager() as smm:
-        sl = smm.ShareableList(INITIAL_STATE)
+        with open('data.json') as f:
+            sl = smm.ShareableList(json.load(f))
 
         web_thread = multiprocessing.Process(target=webserver, args=(sl,))
         web_thread.start()
@@ -201,12 +237,17 @@ def main():
         sim_thread = multiprocessing.Process(target=run_sim, args=(sl,))
         sim_thread.start()
 
-        # dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
-        # dist_thread.start()
+        dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
+        dist_thread.start()
 
         sim_thread.join()
         web_thread.terminate()
         web_thread.join()
+        dist_thread.terminate()
+        dist_thread.join()
+
+        with open('data.json', 'w', encoding='utf-8') as f:
+            json.dump([e for e in sl], f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
