@@ -71,7 +71,6 @@ INITIAL_STATE = [
 ]
 
 
-# TODO save sim params to file
 @app.route("/<color1>/to/<color2>", methods=["PATCH"])
 def change_color_relationship(color1, color2):
     sl = app.config["STATE"]
@@ -173,7 +172,7 @@ def run_sim(sl):
         previous_dist = shared_list_copy[PREVIOUS_DISTANCE_INDEX]
         dist = shared_list_copy[DISTANCE_INDEX]
         if (
-            dist - previous_dist
+            previous_dist - dist
             > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
         ):
             shared_list_copy[
@@ -228,7 +227,7 @@ def run_sim(sl):
 
 def main():
     with SharedMemoryManager() as smm:
-        with open('data.json') as f:
+        with open("data.json") as f:
             sl = smm.ShareableList(json.load(f))
 
         web_thread = multiprocessing.Process(target=webserver, args=(sl,))
@@ -246,7 +245,7 @@ def main():
         dist_thread.terminate()
         dist_thread.join()
 
-        with open('data.json', 'w', encoding='utf-8') as f:
+        with open("data.json", "w", encoding="utf-8") as f:
             json.dump([e for e in sl], f, ensure_ascii=False, indent=4)
 
 
