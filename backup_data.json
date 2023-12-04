@@ -1,0 +1,39 @@
+INITIAL_STATE = [
+  5,  # particle radius
+  70,  # interaction radius
+  0.97,  # friction
+  0,  # distance
+  0,  # previous distance
+  -0.1,  # disturbance amount
+  10,  # disturbance derivative threshold
+  0.1,  # distance read period
+  50,  # desired number of particles
+  255,  # colors
+  0,
+  0,
+  0,
+  255,
+  0,
+  0,
+  0,
+  255,
+  255,
+  255,
+  0,
+  -0.01,  # interactions
+  0.01,
+  0,
+  0,
+  0.01,
+  -0.01,
+  0,
+  0,
+  -0.01,
+  -0.01,
+  -0.01,
+  -0.01,
+  0.01,
+  0.01,
+  0.01,
+  0.01,
+]

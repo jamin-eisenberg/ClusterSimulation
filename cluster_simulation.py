@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import multiprocessing
 
@@ -7,7 +8,7 @@ import time
 from multiprocessing.managers import SharedMemoryManager
 
 import pygame
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from pynput.mouse import Controller
 
 from Particle import Particle
@@ -28,47 +29,16 @@ from constants import (
     DESIRED_PARTICLE_COUNT_INDEX,
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="cluster-simulation/build")
 
-INITIAL_STATE = [
-    5,  # particle radius
-    70,  # interaction radius
-    0.97,  # friction
-    0,  # distance
-    0,  # previous distance
-    -0.1,  # disturbance amount
-    10,  # disturbance derivative threshold
-    0.1,  # distance read period
-    50,  # desired number of particles
-    255,  # colors
-    0,
-    0,
-    0,
-    255,
-    0,
-    0,
-    0,
-    255,
-    255,
-    255,
-    0,
-    -0.01,  # interactions
-    0.01,
-    0,
-    0,
-    0.01,
-    -0.01,
-    0,
-    0,
-    -0.01,
-    -0.01,
-    -0.01,
-    -0.01,
-    0.01,
-    0.01,
-    0.01,
-    0.01,
-]
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route("/<color1>/to/<color2>", methods=["PATCH"])
