@@ -13,10 +13,10 @@ function App() {
     const base_url = 'http://192.168.0.3:5000/' // TODO change to raspi
     // TODO fetch current state at start
 
-    const [color1, setColor1] = useState();
-    const [color2, setColor2] = useState();
-    const [color3, setColor3] = useState();
-    const [color4, setColor4] = useState();
+    const [color1, setColor1] = useState({hex: "#000000"});
+    const [color2, setColor2] = useState({hex: "#000000"});
+    const [color3, setColor3] = useState({hex: "#000000"});
+    const [color4, setColor4] = useState({hex: "#000000"});
 
     function handleColorChange(newColor, colorNum) {
         if (colorNum === 0) {
@@ -56,34 +56,34 @@ function App() {
                             <tbody>
                                 <tr>
                                     <td></td>
-                                    <td>Color 1</td>
-                                    <td>Color 2</td>
-                                    <td>Color 3</td>
-                                    <td>Color 4</td>
+                                    <td><span style={{"color": color1.hex }}>Color 1</span></td>
+                                    <td><span style={{"color": color2.hex }}>Color 2</span></td>
+                                    <td><span style={{"color": color3.hex }}>Color 3</span></td>
+                                    <td><span style={{"color": color4.hex }}>Color 4</span></td>
                                 </tr>
                                 <tr>
-                                    <td>Color 1</td>
+                                    <td><span style={{"color": color1.hex }}>Color 1</span></td>
                                     <td><RequestNumberInput url={base_url + '0/to/0'}/></td>
                                     <td><RequestNumberInput url={base_url + '0/to/1'}/></td>
                                     <td><RequestNumberInput url={base_url + '0/to/2'}/></td>
                                     <td><RequestNumberInput url={base_url + '0/to/3'}/></td>
                                 </tr>
                                 <tr>
-                                    <td>Color 2</td>
+                                    <td><span style={{"color": color2.hex }}>Color 2</span></td>
                                     <td><RequestNumberInput url={base_url + '1/to/0'}/></td>
                                     <td><RequestNumberInput url={base_url + '1/to/1'}/></td>
                                     <td><RequestNumberInput url={base_url + '1/to/2'}/></td>
                                     <td><RequestNumberInput url={base_url + '1/to/3'}/></td>
                                 </tr>
                                 <tr>
-                                    <td>Color 3</td>
+                                    <td><span style={{"color": color3.hex }}>Color 3</span></td>
                                     <td><RequestNumberInput url={base_url + '2/to/0'}/></td>
                                     <td><RequestNumberInput url={base_url + '2/to/1'}/></td>
                                     <td><RequestNumberInput url={base_url + '2/to/2'}/></td>
                                     <td><RequestNumberInput url={base_url + '2/to/3'}/></td>
                                 </tr>
                                 <tr>
-                                    <td>Color 4</td>
+                                    <td><span style={{"color": color4.hex }}>Color 4</span></td>
                                     <td><RequestNumberInput url={base_url + '3/to/0'}/></td>
                                     <td><RequestNumberInput url={base_url + '3/to/1'}/></td>
                                     <td><RequestNumberInput url={base_url + '3/to/2'}/></td>
@@ -118,6 +118,5 @@ function App() {
 }
 
 // TODO random button for color interactions
-// TODO display number color in color interactions table
 
 export default App;
