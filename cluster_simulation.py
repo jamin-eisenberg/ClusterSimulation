@@ -7,8 +7,10 @@ import multiprocessing
 import time
 from multiprocessing.managers import SharedMemoryManager
 
+import flask
 import pygame
 from flask import Flask, request, send_from_directory
+from flask_cors import CORS
 from pynput.mouse import Controller
 
 from Particle import Particle
@@ -30,14 +32,19 @@ from constants import (
 )
 
 app = Flask(__name__, static_folder="cluster-simulation/build")
+CORS(app)
 
+def str_response(s):
+    response = flask.make_response(s)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve(path):
     if path != "" and os.path.exists(app.static_folder + "/" + path):
         return send_from_directory(app.static_folder, path)
-    else:
+    elif path == "":
         return send_from_directory(app.static_folder, "index.html")
 
 
@@ -58,64 +65,71 @@ def change_color_relationship(color1, color2, new_attraction):
         COLOR_INTERACTIONS_START_INDEX
         + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
         + int(color2)
-    ] = float(new_attraction)
-    return ""
+    ] = 0 if new_attraction.strip() == "" or new_attraction.strip() == "NaN" else float(new_attraction)
+    return str_response("")
 
 
 @app.route("/particle-radius/<new_radius>", methods=["PATCH"])
 def change_particle_radius(new_radius):
     sl = app.config["STATE"]
     sl[PARTICLE_RADIUS_INDEX] = int(new_radius)
-    return ""
+    return str_response("")
+
+@app.route("/particle-interaction-radius/<new_interaction_radius>", methods=["PATCH"])
+def change_particle_interaction_radius(new_interaction_radius):
+    sl = app.config["STATE"]
+    sl[INTERACTION_RADIUS_INDEX] = int(new_interaction_radius)
+    return str_response("")
 
 
 @app.route("/particle-count/<new_count>", methods=["PATCH"])
 def change_particle_count(new_count):
     sl = app.config["STATE"]
     sl[DESIRED_PARTICLE_COUNT_INDEX] = int(new_count)
-    return ""
+    return str_response("")
 
 
 @app.route("/friction-coefficient/<new_friction_coefficient>", methods=["PATCH"])
 def change_friction_coefficient(new_friction_coefficient):
     sl = app.config["STATE"]
-    sl[FRICTION_COEFFICIENT_INDEX] = int(new_friction_coefficient)
-    return ""
+    sl[FRICTION_COEFFICIENT_INDEX] = float(new_friction_coefficient)
+    return str_response("")
 
 
 # TODO initial state json
-# TODO type and index validation for methods
+# TODO type and index validation for methods, put error in response (put success message in non-fails?)
+# TODO state getter
 @app.route("/disturbance/<new_disturbance_amount>", methods=["PATCH"])
 def change_disturbance_amount(new_disturbance_amount):
     sl = app.config["STATE"]
-    sl[DISTURBANCE_AMOUNT_INDEX] = int(new_disturbance_amount)
-    return ""
+    sl[DISTURBANCE_AMOUNT_INDEX] = float(new_disturbance_amount)
+    return str_response("")
 
 
 @app.route("/disturbance-derivative/<new_disturbance_derivative>", methods=["PATCH"])
 def change_disturbance_derivative_amount(new_disturbance_derivative):
     sl = app.config["STATE"]
     sl[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX] = int(new_disturbance_derivative)
-    return ""
+    return str_response("")
 
 
 @app.route("/distance-read-period/<new_distance_read_period>", methods=["PATCH"])
 def change_distance_read_period(new_distance_read_period):
     sl = app.config["STATE"]
-    sl[DISTANCE_READ_PERIOD_INDEX] = int(new_distance_read_period)
-    return ""
+    sl[DISTANCE_READ_PERIOD_INDEX] = float(new_distance_read_period)
+    return str_response("")
 
 
 @app.route("/color/<to_change>/to/<r>/<g>/<b>", methods=["PATCH"])
 def change_color(to_change, r, g, b):
     sl = app.config["STATE"]
     color_index = (
-        COLOR_NUMBER_LOOKUP_START_INDEX + to_change * COLOR_NUMBER_LOOKUP_ROW_LENGTH
+        COLOR_NUMBER_LOOKUP_START_INDEX + int(to_change) * COLOR_NUMBER_LOOKUP_ROW_LENGTH
     )
     sl[color_index] = int(r)
     sl[color_index + 1] = int(g)
     sl[color_index + 2] = int(b)
-    return ""
+    return str_response("")
 
 
 def read_distance(sl):
@@ -253,26 +267,28 @@ def run_sim(sl):
 
 def main():
     with SharedMemoryManager() as smm:
-        with open("data.json") as f:
-            sl = smm.ShareableList(json.load(f))
+        try:
+            with open("data.json") as f:
+                sl = smm.ShareableList(json.load(f))
 
-        web_thread = multiprocessing.Process(target=webserver, args=(sl,))
-        web_thread.start()
+            web_thread = multiprocessing.Process(target=webserver, args=(sl,))
+            web_thread.start()
 
-        sim_thread = multiprocessing.Process(target=run_sim, args=(sl,))
-        sim_thread.start()
+            sim_thread = multiprocessing.Process(target=run_sim, args=(sl,))
+            sim_thread.start()
 
-        dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
-        dist_thread.start()
+            dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
+            dist_thread.start()
 
-        sim_thread.join()
-        web_thread.terminate()
-        web_thread.join()
-        dist_thread.terminate()
-        dist_thread.join()
+            sim_thread.join()
+            web_thread.terminate()
+            web_thread.join()
+            dist_thread.terminate()
+            dist_thread.join()
 
-        with open("data.json", "w", encoding="utf-8") as f:
-            json.dump([e for e in sl], f, ensure_ascii=False, indent=4)
+        finally:
+            with open("data.json", "w", encoding="utf-8") as f:
+                json.dump([e for e in sl], f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
