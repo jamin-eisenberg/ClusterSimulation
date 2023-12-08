@@ -32,25 +32,40 @@ from constants import (
 app = Flask(__name__, static_folder="cluster-simulation/build")
 
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
 def serve(path):
-    if path != "" and os.path.exists(app.static_folder + '/' + path):
+    if path != "" and os.path.exists(app.static_folder + "/" + path):
         return send_from_directory(app.static_folder, path)
     else:
-        return send_from_directory(app.static_folder, 'index.html')
+        return send_from_directory(app.static_folder, "index.html")
 
 
-@app.route("/<color1>/to/<color2>", methods=["PATCH"])
-def change_color_relationship(color1, color2):
+def verify_num(n, min, max, should_be_int=False):
+    try:
+        converted = (int if should_be_int else float)(n)
+        return min <= converted <= max
+    except ValueError:
+        return False
+
+
+@app.route("/<color1>/to/<color2>/<new_attraction>", methods=["PATCH"])
+def change_color_relationship(color1, color2, new_attraction):
+    verify_num(color1, 0, 3, True)
+    verify_num(color2, 0, 3, True)
     sl = app.config["STATE"]
-    new_attraction = request.args.get("attraction")
     sl[
         COLOR_INTERACTIONS_START_INDEX
         + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
         + int(color2)
     ] = float(new_attraction)
+    return ""
 
+
+@app.route("/particle-radius/<new_radius>", methods=["PATCH"])
+def change_particle_radius(new_radius):
+    sl = app.config["STATE"]
+    sl[PARTICLE_RADIUS_INDEX] = int(new_radius)
     return ""
 
 
@@ -58,7 +73,48 @@ def change_color_relationship(color1, color2):
 def change_particle_count(new_count):
     sl = app.config["STATE"]
     sl[DESIRED_PARTICLE_COUNT_INDEX] = int(new_count)
+    return ""
 
+
+@app.route("/friction-coefficient/<new_friction_coefficient>", methods=["PATCH"])
+def change_friction_coefficient(new_friction_coefficient):
+    sl = app.config["STATE"]
+    sl[FRICTION_COEFFICIENT_INDEX] = int(new_friction_coefficient)
+    return ""
+
+
+# TODO initial state json
+# TODO type and index validation for methods
+@app.route("/disturbance/<new_disturbance_amount>", methods=["PATCH"])
+def change_disturbance_amount(new_disturbance_amount):
+    sl = app.config["STATE"]
+    sl[DISTURBANCE_AMOUNT_INDEX] = int(new_disturbance_amount)
+    return ""
+
+
+@app.route("/disturbance-derivative/<new_disturbance_derivative>", methods=["PATCH"])
+def change_disturbance_derivative_amount(new_disturbance_derivative):
+    sl = app.config["STATE"]
+    sl[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX] = int(new_disturbance_derivative)
+    return ""
+
+
+@app.route("/distance-read-period/<new_distance_read_period>", methods=["PATCH"])
+def change_distance_read_period(new_distance_read_period):
+    sl = app.config["STATE"]
+    sl[DISTANCE_READ_PERIOD_INDEX] = int(new_distance_read_period)
+    return ""
+
+
+@app.route("/color/<to_change>/to/<r>/<g>/<b>", methods=["PATCH"])
+def change_color(to_change, r, g, b):
+    sl = app.config["STATE"]
+    color_index = (
+        COLOR_NUMBER_LOOKUP_START_INDEX + to_change * COLOR_NUMBER_LOOKUP_ROW_LENGTH
+    )
+    sl[color_index] = int(r)
+    sl[color_index + 1] = int(g)
+    sl[color_index + 2] = int(b)
     return ""
 
 
@@ -129,12 +185,7 @@ def run_sim(sl):
     pygame.display.set_caption("Cluster Simulation")
     while True:
         shared_list_copy = [e for e in sl]
-        spatial_hash = SpatialHash(
-            shared_list_copy[INTERACTION_RADIUS_INDEX], width, height
-        )
         clock.tick(30)
-        for particle in particles:
-            spatial_hash.insert_particle(particle)
 
         screen.fill((0, 0, 0))
         # print(clock.get_fps())
@@ -175,13 +226,18 @@ def run_sim(sl):
         ]
         particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
 
+        spatial_hash = SpatialHash(
+            shared_list_copy[INTERACTION_RADIUS_INDEX], width, height
+        )
+        for particle in particles:
+            spatial_hash.insert_particle(particle)
+
         for particle in particles:
             for other in spatial_hash.neighbor_particles(particle):
                 if particle != other:
                     particle.interact(other, interaction_radius, color_interactions)
             particle.update(width, height, shared_list_copy[FRICTION_COEFFICIENT_INDEX])
             particle.draw(screen, color_number_lookup, particle_radius)
-            # quit()
 
         for event in pygame.event.get():
             if (
