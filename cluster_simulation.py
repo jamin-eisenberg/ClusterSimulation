@@ -34,6 +34,8 @@ from constants import (
 app = Flask(__name__, static_folder="cluster-simulation/build")
 CORS(app)
 
+lock = multiprocessing.Lock()
+
 def str_response(s):
     response = flask.make_response(s)
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -61,62 +63,75 @@ def change_color_relationship(color1, color2, new_attraction):
     verify_num(color1, 0, 3, True)
     verify_num(color2, 0, 3, True)
     sl = app.config["STATE"]
-    sl[
-        COLOR_INTERACTIONS_START_INDEX
-        + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
-        + int(color2)
-    ] = 0 if new_attraction.strip() == "" or new_attraction.strip() == "NaN" else float(new_attraction)
+    with app.config["LOCK"]:
+        sl[
+            COLOR_INTERACTIONS_START_INDEX
+            + int(color1) * COLOR_INTERACTIONS_ROW_LENGTH
+            + int(color2)
+        ] = 0 if new_attraction.strip() == "" or new_attraction.strip() == "NaN" else float(new_attraction)
     return str_response("")
 
 
 @app.route("/particle-radius/<new_radius>", methods=["PATCH"])
 def change_particle_radius(new_radius):
     sl = app.config["STATE"]
-    sl[PARTICLE_RADIUS_INDEX] = int(new_radius)
+    with app.config["LOCK"]:
+        sl[PARTICLE_RADIUS_INDEX] = int(new_radius)
     return str_response("")
 
 @app.route("/particle-interaction-radius/<new_interaction_radius>", methods=["PATCH"])
 def change_particle_interaction_radius(new_interaction_radius):
     sl = app.config["STATE"]
-    sl[INTERACTION_RADIUS_INDEX] = int(new_interaction_radius)
+    with app.config["LOCK"]:
+        sl[INTERACTION_RADIUS_INDEX] = int(new_interaction_radius)
     return str_response("")
 
 
 @app.route("/particle-count/<new_count>", methods=["PATCH"])
 def change_particle_count(new_count):
     sl = app.config["STATE"]
-    sl[DESIRED_PARTICLE_COUNT_INDEX] = int(new_count)
+    with app.config["LOCK"]:
+        sl[DESIRED_PARTICLE_COUNT_INDEX] = int(new_count)
     return str_response("")
 
 
 @app.route("/friction-coefficient/<new_friction_coefficient>", methods=["PATCH"])
 def change_friction_coefficient(new_friction_coefficient):
     sl = app.config["STATE"]
-    sl[FRICTION_COEFFICIENT_INDEX] = float(new_friction_coefficient)
+    with app.config["LOCK"]:
+        sl[FRICTION_COEFFICIENT_INDEX] = float(new_friction_coefficient)
     return str_response("")
 
 
-# TODO initial state json
 # TODO type and index validation for methods, put error in response (put success message in non-fails?)
-# TODO state getter
+@app.route("/state", methods=["GET"])
+def get_state():
+    sl = app.config["STATE"]
+    with app.config["LOCK"]:
+        return [e for e in sl]
+
+
 @app.route("/disturbance/<new_disturbance_amount>", methods=["PATCH"])
 def change_disturbance_amount(new_disturbance_amount):
     sl = app.config["STATE"]
-    sl[DISTURBANCE_AMOUNT_INDEX] = float(new_disturbance_amount)
+    with app.config["LOCK"]:
+        sl[DISTURBANCE_AMOUNT_INDEX] = float(new_disturbance_amount)
     return str_response("")
 
 
 @app.route("/disturbance-derivative/<new_disturbance_derivative>", methods=["PATCH"])
 def change_disturbance_derivative_amount(new_disturbance_derivative):
     sl = app.config["STATE"]
-    sl[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX] = int(new_disturbance_derivative)
+    with app.config["LOCK"]:
+        sl[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX] = int(new_disturbance_derivative)
     return str_response("")
 
 
 @app.route("/distance-read-period/<new_distance_read_period>", methods=["PATCH"])
 def change_distance_read_period(new_distance_read_period):
     sl = app.config["STATE"]
-    sl[DISTANCE_READ_PERIOD_INDEX] = float(new_distance_read_period)
+    with app.config["LOCK"]:
+        sl[DISTANCE_READ_PERIOD_INDEX] = float(new_distance_read_period)
     return str_response("")
 
 
@@ -126,22 +141,26 @@ def change_color(to_change, r, g, b):
     color_index = (
         COLOR_NUMBER_LOOKUP_START_INDEX + int(to_change) * COLOR_NUMBER_LOOKUP_ROW_LENGTH
     )
-    sl[color_index] = int(r)
-    sl[color_index + 1] = int(g)
-    sl[color_index + 2] = int(b)
+    with app.config["LOCK"]:
+        sl[color_index] = int(r)
+        sl[color_index + 1] = int(g)
+        sl[color_index + 2] = int(b)
     return str_response("")
 
 
-def read_distance(sl):
+def read_distance(sl, lock):
     while True:
-        time.sleep(sl[DISTANCE_READ_PERIOD_INDEX])
+        with lock:
+            sleep_time = sl[DISTANCE_READ_PERIOD_INDEX]
+        time.sleep(sleep_time)
         mouse = Controller()
-        sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
-        sl[DISTANCE_INDEX] = mouse.position[0]
+        with lock:
+            sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
+            sl[DISTANCE_INDEX] = mouse.position[0]
         # print(pygame.key.get_pressed()[pygame.K_SPACE])
 
 
-# def read_distance():  TODO gpio
+# def read_distance():  TODO gpio, set distance, lock
 #     try:
 #         GPIO.setmode(GPIO.BOARD)
 #
@@ -176,16 +195,17 @@ def read_distance(sl):
 #         GPIO.cleanup()
 
 
-def webserver(sl):
+def webserver(sl, lock):
     app.config["STATE"] = sl
+    app.config["LOCK"] = lock
     app.run(host="0.0.0.0", use_reloader=False, debug=True)
 
 
-def run_sim(sl):
+def run_sim(sl, lock):
     pygame.init()
 
     screen = pygame.display.set_mode(
-        (640, 480), pygame.DOUBLEBUF, 8
+        (1400, 800), pygame.DOUBLEBUF, 8
     )  # TODO revert  pygame.FULLSCREEN)
     pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN])
 
@@ -198,60 +218,66 @@ def run_sim(sl):
 
     pygame.display.set_caption("Cluster Simulation")
     while True:
-        shared_list_copy = [e for e in sl]
-        clock.tick(30)
+        try:
+            with lock:
+                shared_list_copy = [e for e in sl]
 
-        screen.fill((0, 0, 0))
-        # print(clock.get_fps())
+            clock.tick(30)
 
-        previous_dist = shared_list_copy[PREVIOUS_DISTANCE_INDEX]
-        dist = shared_list_copy[DISTANCE_INDEX]
-        if (
-            previous_dist - dist
-            > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
-        ):
-            shared_list_copy[
+            screen.fill((0, 0, 0))
+            # print(clock.get_fps())
+
+            previous_dist = shared_list_copy[PREVIOUS_DISTANCE_INDEX]
+            dist = shared_list_copy[DISTANCE_INDEX]
+            if (
+                previous_dist - dist
+                > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
+            ):
+                shared_list_copy[
+                    COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
+                    + COLOR_INTERACTIONS_ROW_LENGTH * 4
+                ] = [
+                    shared_list_copy[DISTURBANCE_AMOUNT_INDEX]
+                    for _ in range(COLOR_INTERACTIONS_ROW_LENGTH * 4)
+                ]
+
+            if len(particles) > shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
+                particles.pop(0)
+            elif len(particles) < shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
+                particles.append(
+                    Particle(
+                        (random.randint(0, width), random.randint(0, height)),
+                        next_color_to_generate,
+                    )
+                )
+                next_color_to_generate = (next_color_to_generate + 1) % 4
+
+            interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
+            color_interactions = shared_list_copy[
                 COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
                 + COLOR_INTERACTIONS_ROW_LENGTH * 4
-            ] = [
-                shared_list_copy[DISTURBANCE_AMOUNT_INDEX]
-                for _ in range(COLOR_INTERACTIONS_ROW_LENGTH * 4)
             ]
+            color_number_lookup = shared_list_copy[
+                COLOR_NUMBER_LOOKUP_START_INDEX : COLOR_NUMBER_LOOKUP_START_INDEX
+                + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4
+            ]
+            particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
 
-        if len(particles) > shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
-            particles.pop(0)
-        elif len(particles) < shared_list_copy[DESIRED_PARTICLE_COUNT_INDEX]:
-            particles.append(
-                Particle(
-                    (random.randint(0, width), random.randint(0, height)),
-                    next_color_to_generate,
-                )
+            spatial_hash = SpatialHash(
+                shared_list_copy[INTERACTION_RADIUS_INDEX], width, height
             )
-            next_color_to_generate = (next_color_to_generate + 1) % 4
+            for particle in particles:
+                spatial_hash.insert_particle(particle)
 
-        interaction_radius = shared_list_copy[INTERACTION_RADIUS_INDEX]
-        color_interactions = shared_list_copy[
-            COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
-            + COLOR_INTERACTIONS_ROW_LENGTH * 4
-        ]
-        color_number_lookup = shared_list_copy[
-            COLOR_NUMBER_LOOKUP_START_INDEX : COLOR_NUMBER_LOOKUP_START_INDEX
-            + COLOR_NUMBER_LOOKUP_ROW_LENGTH * 4
-        ]
-        particle_radius = shared_list_copy[PARTICLE_RADIUS_INDEX]
-
-        spatial_hash = SpatialHash(
-            shared_list_copy[INTERACTION_RADIUS_INDEX], width, height
-        )
-        for particle in particles:
-            spatial_hash.insert_particle(particle)
-
-        for particle in particles:
-            for other in spatial_hash.neighbor_particles(particle):
-                if particle != other:
-                    particle.interact(other, interaction_radius, color_interactions)
-            particle.update(width, height, shared_list_copy[FRICTION_COEFFICIENT_INDEX])
-            particle.draw(screen, color_number_lookup, particle_radius)
+            for particle in particles:
+                for other in spatial_hash.neighbor_particles(particle):
+                    if particle != other:
+                        particle.interact(other, interaction_radius, color_interactions)
+                particle.update(width, height, shared_list_copy[FRICTION_COEFFICIENT_INDEX])
+                particle.draw(screen, color_number_lookup, particle_radius)
+        except Exception as e:
+            print(e)
+            pass
 
         for event in pygame.event.get():
             if (
@@ -268,16 +294,18 @@ def run_sim(sl):
 def main():
     with SharedMemoryManager() as smm:
         try:
-            with open("data.json") as f:
+            global lock
+            filename = "data.json" if os.path.isfile("data.json") else "initial_state.json"
+            with open(filename) as f:
                 sl = smm.ShareableList(json.load(f))
 
-            web_thread = multiprocessing.Process(target=webserver, args=(sl,))
+            web_thread = multiprocessing.Process(target=webserver, args=(sl, lock))
             web_thread.start()
 
-            sim_thread = multiprocessing.Process(target=run_sim, args=(sl,))
+            sim_thread = multiprocessing.Process(target=run_sim, args=(sl, lock))
             sim_thread.start()
 
-            dist_thread = multiprocessing.Process(target=read_distance, args=(sl,))
+            dist_thread = multiprocessing.Process(target=read_distance, args=(sl, lock))
             dist_thread.start()
 
             sim_thread.join()

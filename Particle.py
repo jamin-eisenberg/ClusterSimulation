@@ -32,7 +32,7 @@ class Particle:
             force_dir = (other.pos[0] - self.pos[0], other.pos[1] - self.pos[1])
             force_mod = color_interactions[
                 self.color * COLOR_INTERACTIONS_ROW_LENGTH + other.color
-            ] / 100  # TODO lock on shared mem?
+            ] / 10000
             force = (force_dir[0] * force_mod, force_dir[1] * force_mod)
             self.vel = (self.vel[0] + force[0], self.vel[1] + force[1])
 

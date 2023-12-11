@@ -5,11 +5,11 @@ import {
     NumberInputField,
     NumberInputStepper
 } from "@chakra-ui/react";
-import {patch_to} from "../utils";
+import {patchTo} from "../utils";
 
-export function RequestNumberInput({url, min, max, step}) {
+export function RequestNumberInput({value, setter, url, min, max, step}) {
     return (
-        <NumberInput allowMouseWheel min={min} max={max} step={step} onChange={(_, n) => patch_to(url, n)}>
+        <NumberInput allowMouseWheel value={value} min={min} max={max} step={step} onChange={(_, n) => {setter(n); patchTo(url, n);}}>
             <NumberInputField/>
             <NumberInputStepper>
                 <NumberIncrementStepper/>

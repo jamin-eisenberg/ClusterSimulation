@@ -6,12 +6,12 @@ import {
     NumberInputField,
     NumberInputStepper
 } from "@chakra-ui/react";
-import {patch_to} from "../utils";
+import {patchTo} from "../utils";
 
-export function FormRequestNumberInput({title, help, url, min, max, step}) {
+export function FormRequestNumberInput({title, help, url, min, max, step, value, setter}) {
     return (<FormControl>
         <FormLabel>{title}</FormLabel>
-        <NumberInput allowMouseWheel min={min} max={max} step={step} onChange={(_, n) => patch_to(url, n)}>
+        <NumberInput allowMouseWheel value={value} min={min} max={max} step={step} onChange={(s, n) => {setter(s); patchTo(url, n);}}>
             <NumberInputField/>
             <NumberInputStepper>
                 <NumberIncrementStepper/>

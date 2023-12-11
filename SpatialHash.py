@@ -16,7 +16,6 @@ class SpatialHash:
     def insert_particle(self, particle):
         bucket_x, bucket_y = self._hash(particle)
         self.buckets[bucket_y][bucket_x].add(particle)
-        # TODO potentially move particles when they're updated instead of recreating spatial hash each frame
 
     def _run(self, a, b, mod):
         return map(lambda x: x % mod, range(a, b))

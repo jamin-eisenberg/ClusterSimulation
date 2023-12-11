@@ -1,4 +1,4 @@
-export function patch_to(url, val) {
+export function patchTo(url, val) {
     const requestOptions = {
         method: 'PATCH',
     };
@@ -6,7 +6,19 @@ export function patch_to(url, val) {
         fetch(url, requestOptions)
             .then(response => console.log(response))
     } else {
-        fetch(url + '/' + val, requestOptions)
-            .then(response => console.log(response))
+        if (isNaN(val)) {
+            fetch(url + '/0', requestOptions).then(console.log)
+        }
+        else {
+            fetch(url + '/' + val, requestOptions)
+                .then(response => console.log(response))
+        }
     }
+}
+
+export async function getState(url) {
+    const requestOptions = {
+        method: 'GET',
+    };
+    return fetch(url + 'state', requestOptions)
 }
