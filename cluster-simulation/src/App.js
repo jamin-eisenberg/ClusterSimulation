@@ -11,7 +11,7 @@ import {useEffect, useState} from "react";
 import {getState, patchTo} from "./utils";
 
 function App() {
-    const base_url = 'http://192.168.0.3:5000/' // TODO change to raspberrypi.local
+    const base_url = 'http://raspberrypi.local/'
     // TODO only send color on finish picking?
     // TODO long test, with other computer client
     // TODO aesthetics
