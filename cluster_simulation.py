@@ -168,6 +168,9 @@ def webserver(sl, lock):
 def run_sim(sl, lock):
     pygame.init()
 
+    icon = pygame.image.load('cake_icon.png')
+    pygame.display.set_icon(icon)
+
     screen = pygame.display.set_mode(
         (1400, 800), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.FULLSCREEN, 8
     )
@@ -251,8 +254,7 @@ def run_sim(sl, lock):
                 pygame.display.toggle_fullscreen()
 
         pygame.display.update()
-# TODO raspberrypi.local -> my IP
-# TODO verify mobile is nice
+# TODO verify mobile is nice - no outside access
 # TODO display IP somewhere
 # TODO keypress to disturb
 # TODO icon
