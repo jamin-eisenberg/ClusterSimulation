@@ -11,7 +11,9 @@ import {useEffect, useState} from "react";
 import {getState, patchTo} from "./utils";
 
 function App() {
-    const base_url = 'http://raspberrypi.local/'
+    console.log("Server running on: " + window.serverIP);
+    const base_url = window.serverIP + "/";
+    console.log(base_url);
     // TODO only send color on finish picking?
     // TODO long test, with other computer client
     // TODO aesthetics
@@ -46,7 +48,7 @@ function App() {
     function setRandomColorInteractions() {
         const newColorInteractions = colorInteractions.map(() => Math.floor(Math.random() * 400 - 200));
         setColorInteractions(newColorInteractions);
-        newColorInteractions.map((c, n) => patchTo(base_url + `${Math.floor(n / 4)}/to/${n % 4}`, c))
+        newColorInteractions.map((c, n) => patchTo(`${Math.floor(n / 4)}/to/${n % 4}`, c))
     }
 
     useEffect(() => {
@@ -84,7 +86,7 @@ function App() {
         } else if (colorNum === 3) {
             setColor4(newColor)
         }
-        patchTo(base_url + `color/${colorNum}/to/${newColor.r}/${newColor.g}/${newColor.b}`)
+        patchTo(`color/${colorNum}/to/${newColor.r}/${newColor.g}/${newColor.b}`)
     }
 
     return (
@@ -92,19 +94,19 @@ function App() {
             <div className="App">
                 <header className="App-header">
                     <FormRequestNumberInput value={particleRadius} setter={setParticleRadius} title={'Particle radius'} help={'How big the particle is in pixels.'}
-                                            url={base_url + 'particle-radius'} min={0}/>
+                                            url={'particle-radius'} min={0}/>
                     <FormRequestNumberInput value={particleInteractionRadius} setter={setParticleInteractionRadius} title={'Particle interaction radius'} help={'How far away a particle can be from another particle before they stop interacting.'}
-                                            url={base_url + 'particle-interaction-radius'} min={0}/>
+                                            url={'particle-interaction-radius'} min={0}/>
                     <FormRequestNumberInput value={particleCount} setter={setParticleCount} title={'Particle count'} help={'How many total particles there are.'}
-                                            url={base_url + 'particle-count'} min={1}/>
+                                            url={'particle-count'} min={1}/>
                     <FormRequestNumberInput value={frictionFactor} setter={setFrictionFactor} title={'Friction factor'} help={"What portion of a particle's speed is maintained frame-to-frame."}
-                                            url={base_url + 'friction-coefficient'} min={0} max={1} step={0.01}/>
+                                            url={'friction-coefficient'} min={0} max={1} step={0.01}/>
                     <FormRequestNumberInput value={disturbanceAmount} setter={setDisturbanceAmount} title={'Disturbance amount'} help={"How much particles attract each other when someone walks in front of the ultrasonic sensor. Attraction is positive, repulsion is negative."}
-                                            url={base_url + 'disturbance'} step={1}/>
+                                            url={'disturbance'} step={1}/>
                     <FormRequestNumberInput value={disturbanceDerivative} setter={setDisturbanceDerivative} title={'Disturbance derivative'} help={"How much the distance (in mm) the sensor senses has to change before causing a disturbance."}
-                                            url={base_url + 'disturbance-derivative'} min={0} step={1}/>
+                                            url={'disturbance-derivative'} min={0} step={1}/>
                     <FormRequestNumberInput value={distanceReadPeriod} setter={setDistanceReadPeriod} title={'Distance read period'} help={"How long (in seconds) the distance sensor waits between reading distance."}
-                                            url={base_url + 'distance-read-period'} min={0.05} step={0.1}/>
+                                            url={'distance-read-period'} min={0.05} step={0.1}/>
                     <FormControl>
                         <FormLabel>Color interactions</FormLabel>
                         <FormHelperText>(e.g. Row Color 1, Column Color 3 = -2 states that color 1 is repelled by color 3 with a strength of 2)</FormHelperText>

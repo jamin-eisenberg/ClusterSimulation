@@ -2,13 +2,14 @@ import json
 import os
 import random
 import multiprocessing
+import socket
 
 import time
 from multiprocessing.managers import SharedMemoryManager
 
 import flask
 import pygame
-from flask import Flask, request, send_from_directory
+from flask import Flask, request, send_from_directory, send_file, render_template
 from flask_cors import CORS
 from pynput.mouse import Controller
 
@@ -30,7 +31,7 @@ from constants import (
     DESIRED_PARTICLE_COUNT_INDEX,
 )
 
-app = Flask(__name__, static_folder="cluster-simulation/build")
+app = Flask(__name__, static_folder="cluster-simulation/build", template_folder="cluster-simulation/build")
 CORS(app)
 
 lock = multiprocessing.Lock()
@@ -46,7 +47,7 @@ def serve(path):
     if path != "" and os.path.exists(app.static_folder + "/" + path):
         return send_from_directory(app.static_folder, path)
     elif path == "":
-        return send_from_directory(app.static_folder, "index.html")
+        return render_template("index.html", myip=request.host)
 
 
 def verify_num(n, min, max, should_be_int=False):
@@ -161,7 +162,7 @@ def read_distance(sl, lock):
 def webserver(sl, lock):
     app.config["STATE"] = sl
     app.config["LOCK"] = lock
-    app.run(host="0.0.0.0", use_reloader=False, debug=True)
+    app.run(host="0.0.0.0", port=80, use_reloader=False, debug=True)
 
 
 def run_sim(sl, lock):
@@ -251,7 +252,6 @@ def run_sim(sl, lock):
 
         pygame.display.update()
 # TODO raspberrypi.local -> my IP
-# TODO resizable, escape exits fullscreen
 # TODO verify mobile is nice
 # TODO display IP somewhere
 # TODO keypress to disturb

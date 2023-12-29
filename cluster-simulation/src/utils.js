@@ -20,5 +20,5 @@ export async function getState(url) {
     const requestOptions = {
         method: 'GET',
     };
-    return fetch(url + 'state', requestOptions)
+    return fetch( 'state', requestOptions);
 }
