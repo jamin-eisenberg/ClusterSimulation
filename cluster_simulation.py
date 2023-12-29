@@ -163,8 +163,8 @@ def run_sim(sl, lock):
     pygame.display.set_icon(icon)
 
     monitor_info = pygame.display.Info()
-    screen = pygame.display.set_mode(  # TODO revert to fullscreen
-        (monitor_info.current_w, monitor_info.current_h), pygame.DOUBLEBUF | pygame.RESIZABLE, 8
+    screen = pygame.display.set_mode(
+        (monitor_info.current_w, monitor_info.current_h), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.FULLSCREEN, 8
     )
     pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
 
@@ -255,8 +255,7 @@ def run_sim(sl, lock):
                 space_pressed = False
 
         pygame.display.update()
-# TODO verify mobile is nice - no outside access
-# TODO keypress to disturb
+
 
 def main():
     with SharedMemoryManager() as smm:
