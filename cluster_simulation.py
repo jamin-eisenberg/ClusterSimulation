@@ -1,18 +1,15 @@
 import json
+import multiprocessing
 import os
 import random
-import multiprocessing
 import socket
-
-import time
 import webbrowser
 from multiprocessing.managers import SharedMemoryManager
 
 import flask
 import pygame
-from flask import Flask, request, send_from_directory, send_file, render_template
+from flask import Flask, request, send_from_directory, render_template
 from flask_cors import CORS
-from pynput.mouse import Controller
 from werkzeug.serving import get_interface_ip
 
 from Particle import Particle
@@ -284,4 +281,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
