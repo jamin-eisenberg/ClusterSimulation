@@ -5,6 +5,7 @@ import multiprocessing
 import socket
 
 import time
+import webbrowser
 from multiprocessing.managers import SharedMemoryManager
 
 import flask
@@ -12,6 +13,7 @@ import pygame
 from flask import Flask, request, send_from_directory, send_file, render_template
 from flask_cors import CORS
 from pynput.mouse import Controller
+from werkzeug.serving import get_interface_ip
 
 from Particle import Particle
 from SpatialHash import SpatialHash
@@ -148,17 +150,6 @@ def change_color(to_change, r, g, b):
     return str_response("")
 
 
-def read_distance(sl, lock):
-    while True:
-        with lock:
-            sleep_time = sl[DISTANCE_READ_PERIOD_INDEX]
-        time.sleep(sleep_time)
-        mouse = Controller()
-        with lock:
-            sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
-            sl[DISTANCE_INDEX] = mouse.position[0]
-
-
 def webserver(sl, lock):
     app.config["STATE"] = sl
     app.config["LOCK"] = lock
@@ -171,10 +162,11 @@ def run_sim(sl, lock):
     icon = pygame.image.load('cake_icon.png')
     pygame.display.set_icon(icon)
 
-    screen = pygame.display.set_mode(
-        (1400, 800), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.FULLSCREEN, 8
+    monitor_info = pygame.display.Info()
+    screen = pygame.display.set_mode(  # TODO revert to fullscreen
+        (monitor_info.current_w, monitor_info.current_h), pygame.DOUBLEBUF | pygame.RESIZABLE, 8
     )
-    pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN])
+    pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
 
     width, height = screen.get_size()
 
@@ -184,6 +176,9 @@ def run_sim(sl, lock):
     clock = pygame.time.Clock()
 
     pygame.display.set_caption("Cluster Simulation")
+
+    space_pressed = False
+
     while True:
         try:
             with lock:
@@ -196,10 +191,11 @@ def run_sim(sl, lock):
 
             previous_dist = shared_list_copy[PREVIOUS_DISTANCE_INDEX]
             dist = shared_list_copy[DISTANCE_INDEX]
-            if (
-                previous_dist - dist
-                > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
-            ):
+            # if (
+            #     previous_dist - dist
+            #     > shared_list_copy[DISTURBANCE_DERIVATIVE_THRESHOLD_INDEX]
+            # ):
+            if space_pressed:
                 shared_list_copy[
                     COLOR_INTERACTIONS_START_INDEX : COLOR_INTERACTIONS_START_INDEX
                     + COLOR_INTERACTIONS_ROW_LENGTH * 4
@@ -250,14 +246,17 @@ def run_sim(sl, lock):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_F12:
-                pygame.display.toggle_fullscreen()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F12:
+                    pygame.display.toggle_fullscreen()
+                elif event.key == pygame.K_SPACE:
+                    space_pressed = True
+            elif event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+                space_pressed = False
 
         pygame.display.update()
 # TODO verify mobile is nice - no outside access
-# TODO display IP somewhere
 # TODO keypress to disturb
-# TODO icon
 
 def main():
     with SharedMemoryManager() as smm:
@@ -267,20 +266,18 @@ def main():
             with open(filename) as f:
                 sl = smm.ShareableList(json.load(f))
 
+            ip = get_interface_ip(socket.AF_INET)
+            webbrowser.open_new_tab('http://' + ip)
+
             web_thread = multiprocessing.Process(target=webserver, args=(sl, lock))
             web_thread.start()
 
             sim_thread = multiprocessing.Process(target=run_sim, args=(sl, lock))
             sim_thread.start()
 
-            dist_thread = multiprocessing.Process(target=read_distance, args=(sl, lock))
-            dist_thread.start()
-
             sim_thread.join()
             web_thread.terminate()
             web_thread.join()
-            dist_thread.terminate()
-            dist_thread.join()
 
         finally:
             with open("data.json", "w", encoding="utf-8") as f:
