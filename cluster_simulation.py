@@ -3,7 +3,6 @@ import os
 import random
 import multiprocessing
 
-import RPi.GPIO as GPIO
 import time
 from multiprocessing.managers import SharedMemoryManager
 
@@ -148,58 +147,15 @@ def change_color(to_change, r, g, b):
     return str_response("")
 
 
-# def read_distance(sl, lock):
-#     while True:
-#         with lock:
-#             sleep_time = sl[DISTANCE_READ_PERIOD_INDEX]
-#         time.sleep(sleep_time)
-#         mouse = Controller()
-#         with lock:
-#             sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
-#             sl[DISTANCE_INDEX] = mouse.position[0]
-
-
 def read_distance(sl, lock):
     while True:
         with lock:
             sleep_time = sl[DISTANCE_READ_PERIOD_INDEX]
-
-        try:
-            GPIO.setmode(GPIO.BOARD)
-
-            PIN_TRIGGER = 16
-            PIN_ECHO = 18
-
-            GPIO.setup(PIN_TRIGGER, GPIO.OUT)
-            GPIO.setup(PIN_ECHO, GPIO.IN)
-
-            GPIO.output(PIN_TRIGGER, GPIO.LOW)
-
-            time.sleep(sleep_time)
-
-            GPIO.output(PIN_TRIGGER, GPIO.HIGH)
-
-            time.sleep(0.00001)
-
-            GPIO.output(PIN_TRIGGER, GPIO.LOW)
-
-            pulse_start_time = time.time()
-            while GPIO.input(PIN_ECHO) == 0:
-                pulse_start_time = time.time()
-
-            pulse_end_time = time.time()
-            while GPIO.input(PIN_ECHO) == 1:
-                pulse_end_time = time.time()
-
-            pulse_duration = pulse_end_time - pulse_start_time
-
-            dist = round(pulse_duration * 17150, 2)
-
+        time.sleep(sleep_time)
+        mouse = Controller()
+        with lock:
             sl[PREVIOUS_DISTANCE_INDEX] = sl[DISTANCE_INDEX]
-            sl[DISTANCE_INDEX] = dist
-
-        finally:
-            GPIO.cleanup()
+            sl[DISTANCE_INDEX] = mouse.position[0]
 
 
 def webserver(sl, lock):
@@ -212,7 +168,7 @@ def run_sim(sl, lock):
     pygame.init()
 
     screen = pygame.display.set_mode(
-        (1400, 800), pygame.DOUBLEBUF | pygame.FULLSCREEN, 8
+        (1400, 800), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.FULLSCREEN, 8
     )
     pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN])
 
@@ -287,16 +243,19 @@ def run_sim(sl, lock):
             pass
 
         for event in pygame.event.get():
-            if (
-                event.type == pygame.KEYDOWN
-                and event.key == pygame.K_ESCAPE
-                or event.type == pygame.QUIT
-            ):
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 return
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_F12:
+                pygame.display.toggle_fullscreen()
 
         pygame.display.update()
-
+# TODO raspberrypi.local -> my IP
+# TODO resizable, escape exits fullscreen
+# TODO verify mobile is nice
+# TODO display IP somewhere
+# TODO keypress to disturb
+# TODO icon
 
 def main():
     with SharedMemoryManager() as smm:
